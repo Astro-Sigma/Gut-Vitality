@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gut Vitality</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="data:,">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+    
+    <!-- Firebase -->
+    <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
+    import { getAuth } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
+    import { getFirestore } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyBbVQA5cZSrvlpJffQuR_Wjtog8x61HOaM",
+        authDomain: "gut-vitality.firebaseapp.com",
+        projectId: "gut-vitality",
+        storageBucket: "gut-vitality.firebasestorage.app",
+        messagingSenderId: "380119762643",
+        appId: "1:380119762643:web:eb62c52573058e908f7626",
+        measurementId: "G-Q31NX5KT3B"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    window.auth = getAuth(app);
+    window.db = getFirestore(app);
+    
+    // Load all Firebase modules
+    const [authModule, firestoreModule] = await Promise.all([
+        import('https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js'),
+        import('https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js')
+    ]);
+    
+    window.firebaseImports = {
+        auth: authModule,
+        firestore: firestoreModule
+    };
+    
+    // Signal that Firebase is ready
+    window.firebaseReady = true;
+    window.dispatchEvent(new Event('firebaseReady'));
+    console.log('Firebase initialized and ready');
+</script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Poppins:wght@600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header id="app-header">
+    <div class="header-left">
+        <img src="gutvitality.png" alt="Gut Vitality Logo" id="app-logo">
+        <div class="brand-text">
+        <h1>Gut Vitality</h1>
+        <p>Fostering a network of gut-conscious individuals.</p>
+        </div>
+    </div>
+    <button id="profile-shortcut">
+        <span class="material-icons">account_circle</span>
+    </button>
+    </header>
+
+    <main>
+        <div class="page active" id="dashboard">
+            <h2 class="dashboard-title">Today's Gut Score</h2>
+            <div id="dashboard-container">
+                <div class="circle-container">
+                    <canvas id="gut-score-circle" width="200" height="200"></canvas>
+                    <div class="circle-label">
+                        <span id="gut-score-value">--</span>
+                        <span>Gut Score</span>
+                    </div>
+                </div>
+
+        <div class="progress-container">
+            <span>Fiber</span>
+            <div class="progress-bar"><div id="fiber-progress" class="progress-fill fiber"></div></div>
+            <span id="fiber-value">0 / 30g</span>
+        </div>
+
+        <div class="progress-container">
+            <span>Water Intake</span>
+            <div class="progress-bar"><div id="water-progress" class="progress-fill water"></div></div>
+            <span id="water-value">0 / 64 oz</span>
+        </div>
+
+        <div class="progress-container">
+            <span>Fermented Foods</span>
+            <div class="progress-bar"><div id="fermented-progress" class="progress-fill fermented"></div></div>
+            <span id="fermented-value">0 / 3 servings</span>
+        </div>
+
+        <div class="progress-container">
+            <span>Fruits + Vegetables</span>
+            <div class="progress-bar"><div id="veggies-progress" class="progress-fill veggies"></div></div>
+            <span id="veggies-value">0 / 5 servings</span>
+        </div>
+
+        <div class="progress-container">
+            <span>Added Sugar (limit)</span>
+            <div class="progress-bar"><div id="sugar-progress" class="progress-fill sugar"></div></div>
+            <span id="sugar-value">0 / 25g</span>
+        </div>
+
+        <div class="progress-container">
+            <span>Processed Foods (limit)</span>
+            <div class="progress-bar"><div id="processed-progress" class="progress-fill processed"></div></div>
+            <span id="processed-value">0 / 3 servings</span>
+        </div>
+
+                <!--<div class="ai-suggestions-container">
+                    <button id="get-ai-suggestions-btn" class="ai-btn">
+                        <span class="material-icons">lightbulb</span>
+                        Get AI Food Suggestions
+                    </button>
+                    <div id="ai-suggestions-result" style="display: none;"></div>
+                </div>-->
+
+                <!--<div class="graph-container">
+                    <h3 style="text-align: center; margin-bottom: 0.5rem;">Weekly Gut Score Trend</h3>
+                    <canvas id="trend-chart" width="400" height="200"></canvas>
+                </div>-->
+
+                <div id="meals-list"></div>
+
+                <div id="add-meal">
+                    <button id="add-meal-button" type ="submit" style="width: 25rem">Add Meal</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="overlay" id="overlay" style="display: none;"></div>
+        <div class="popup" id ="add-meal-form-container" style="display: none;">
+            <form id="add-meal-form">
+                <h2>Enter your meal:</h2>
+                <label>Barcode (optional):</label>
+                <div style="display: flex; gap: 0.5rem;">
+                    <input type="text" id="barcode-input" name="barcode-input" placeholder="Scan or enter barcode">
+                    <button type="button" id="scan-barcode-btn">Scan</button>
+                    <button type="button" id="lookup-barcode-btn">Lookup</button>
+                </div>
+                <div id="barcode-scanner" style="display: none; margin-top: 0.5rem;">
+                    <div id="scanner-container"></div>
+                    <button type="button" id="stop-scan-btn" style="margin-top: 0.5rem;">Stop Scanning</button>
+                </div>
+                
+                <label>Meal Name:</label>
+                <input type="text" id="meal-name" name="meal-name" required>
+                
+                <label>Fiber (grams):</label>
+                <input type="number" id="fiber-content" name="fiber-content" value="0" min="0">
+                
+                <label>Water (oz):</label>
+                <input type="number" id="water-content" name="water-content" value="0" min="0">
+                
+                <label>Fermented Foods (servings):</label>
+                <input type="number" id="fermented-content" name="fermented-content" value="0" min="0">
+                <small style="font-size: 0.75rem; color: #666;">Yogurt, kefir, kimchi, sauerkraut, kombucha, miso</small>
+                
+                <label>Fruits + Vegetables (servings):</label>
+                <input type="number" id="veggies-content" name="veggies-content" value="0" min="0">
+                
+                <label>Added Sugar (grams):</label>
+                <input type="number" id="sugar-content" name="sugar-content" value="0" min="0">
+                
+                <label>Processed Foods (servings):</label>
+                <input type="number" id="processed-content" name="processed-content" value="0" min="0">
+                <small style="font-size: 0.75rem; color: #666;">Fast food, packaged snacks, sugary drinks</small>
+                
+                <label>Image:</label>
+                <input type="file" id="meal-image" name="meal-image" accept="image/*">
+                <button type="submit" id="add-meal-submit">Submit</button>
+            </form>
+        </div>
+
+        <div class="overlay" id="score-overlay" style="display: none;"></div>
+        <div class="popup" id="score-breakdown-popup" style="display: none;">
+        <h2 style="text-align: center; color: #0f4c75; margin-bottom: 1rem;">Gut Score Breakdown</h2>
+        <div id="score-details">
+            <div class="score-item">
+                <span class="score-label">Base Score</span>
+                <span class="score-value" id="base-score">30</span>
+            </div>
+            <div class="score-item positive">
+                <span class="score-label">Fiber Bonus</span>
+                <span class="score-value" id="fiber-score">+0</span>
+            </div>
+            <div class="score-item positive">
+                <span class="score-label">Water Bonus</span>
+                <span class="score-value" id="water-score">+0</span>
+            </div>
+            <div class="score-item positive">
+                <span class="score-label">Fermented Foods Bonus</span>
+                <span class="score-value" id="fermented-score">+0</span>
+            </div>
+            <div class="score-item positive">
+                <span class="score-label">Fruits + Veggies Bonus</span>
+                <span class="score-value" id="veggies-score">+0</span>
+            </div>
+            <div class="score-item negative">
+                <span class="score-label">Sugar Penalty</span>
+                <span class="score-value" id="sugar-penalty">-0</span>
+            </div>
+            <div class="score-item negative">
+                <span class="score-label">Processed Foods Penalty</span>
+                <span class="score-value" id="processed-penalty">-0</span>
+            </div>
+            <hr style="margin: 1rem 0; border: 1px solid #e0e0e0;">
+            <div class="score-item total">
+                <span class="score-label"><strong>Total Gut Score</strong></span>
+                <span class="score-value"><strong id="total-score">30</strong></span>
+            </div>
+        </div>
+        <button type="button" id="close-breakdown-btn" style="width: 100%; margin-top: 1rem;">Close</button>
+    </div>
+
+    <div class="page" id="education">
+    <div class="education-container">
+        <h2 class="education-title">Learn About Gut Health</h2>
+        <p class="education-subtitle">Discover how to optimize your microbiome for better health</p>
+
+<!-- Weekly Challenge Leaderboard -->
+        <div class="challenge-section">
+            <div class="challenge-header">
+                <div class="challenge-title-area">
+                    <span class="material-icons">emoji_events</span>
+                    <div>
+                        <h3>Weekly Gut Health Challenge</h3>
+                        <p class="challenge-subtitle">Answer daily questions and climb the leaderboard!</p>
+                    </div>
+                </div>
+                <div class="challenge-timer" id="challenge-timer">
+                    <span class="material-icons">schedule</span>
+                    <span id="time-remaining">Resets in 5d 12h</span>
+                </div>
+            </div>
+
+            <!-- Leaderboard -->
+            <div class="leaderboard-container">
+                <h4><span class="material-icons">leaderboard</span> Top Performers This Week</h4>
+                <div class="leaderboard-list" id="leaderboard-list">
+                    <div class="loading-message">Loading leaderboard...</div>
+                </div>
+            </div>
+
+            <!-- Daily Question -->
+            <div class="daily-question-container">
+                <h4><span class="material-icons">quiz</span> Today's Challenge Question</h4>
+                <div id="daily-question-content">
+                    <div class="loading-message">Loading today's question...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Stats Cards -->
+        <div class="edu-stats-grid">
+            <div class="edu-stat-card">
+                <span class="material-icons">science</span>
+                <h3>100 Trillion</h3>
+                <p>Bacteria in your gut</p>
+            </div>
+            <div class="edu-stat-card">
+                <span class="material-icons">psychology</span>
+                <h3>90%</h3>
+                <p>Of serotonin made in gut</p>
+            </div>
+            <div class="edu-stat-card">
+                <span class="material-icons">shield</span>
+                <h3>70%</h3>
+                <p>Of immune system in gut</p>
+            </div>
+        </div>
+
+        <!-- Main Topics -->
+        <div class="edu-topics">
+            <!-- Topic 1: Fiber -->
+            <div class="edu-topic-card">
+                <div class="edu-topic-header" onclick="toggleTopic('edu-fiber')">
+                    <div class="edu-topic-title">
+                        <span class="material-icons">grass</span>
+                        <h3>Dietary Fiber: Your Gut's Best Friend</h3>
+                    </div>
+                    <span class="material-icons expand-icon">expand_more</span>
+                </div>
+                <div class="edu-topic-content" id="edu-fiber-content">
+                    <p><strong>Why it matters:</strong> Fiber feeds beneficial bacteria in your gut, helping them produce short-chain fatty acids that reduce inflammation and support overall health.</p>
+                    
+                    <h4>Daily Target: 25-38g</h4>
+                    
+                    <div class="food-examples">
+                        <h4>Top Fiber Sources:</h4>
+                        <div class="food-grid">
+                            <div class="food-item">
+                                <span class="material-icons">yard</span>
+                                <strong>Legumes</strong>
+                                <span>15g per cup</span>
+                            </div>
+                            <div class="food-item">
+                                <span class="material-icons">grain</span>
+                                <strong>Whole Grains</strong>
+                                <span>6g per serving</span>
+                            </div>
+                            <div class="food-item">
+                                <span class="material-icons">eco</span>
+                                <strong>Berries</strong>
+                                <span>8g per cup</span>
+                            </div>
+                            <div class="food-item">
+                                <span class="material-icons">emoji_nature</span>
+                                <strong>Chia Seeds</strong>
+                                <span>10g per 2 tbsp</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="tip-box">
+                        <span class="material-icons">lightbulb</span>
+                        <p><strong>Pro Tip:</strong> Increase fiber gradually and drink plenty of water to avoid digestive discomfort.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Topic 2: Fermented Foods -->
+            <div class="edu-topic-card">
+                <div class="edu-topic-header" onclick="toggleTopic('edu-fermented')">
+                    <div class="edu-topic-title">
+                        <span class="material-icons">restaurant</span>
+                        <h3>Fermented Foods: Natural Probiotics</h3>
+                    </div>
+                    <span class="material-icons expand-icon">expand_more</span>
+                </div>
+                <div class="edu-topic-content" id="edu-fermented-content">
+                    <p><strong>Why it matters:</strong> Fermented foods contain live beneficial bacteria that colonize your gut and support digestive health, immunity, and even mental well-being.</p>
+                    
+                    <h4>Daily Target: 2-3 servings</h4>
+                    
+                    <div class="food-examples">
+                        <h4>Best Fermented Foods:</h4>
+                        <div class="food-grid">
+                            <div class="food-item">
+                                <span class="material-icons">local_cafe</span>
+                                <strong>Yogurt</strong>
+                                <span>Live cultures</span>
+                            </div>
+                            <div class="food-item">
+                                <span class="material-icons">local_drink</span>
+                                <strong>Kefir</strong>
+                                <span>12+ strains</span>
+                            </div>
+                            <div class="food-item">
+                                <span class="material-icons">restaurant_menu</span>
+                                <strong>Kimchi</strong>
+                                <span>Korean classic</span>
+                            </div>
+                            <div class="food-item">
+                                <span class="material-icons">food_bank</span>
+                                <strong>Sauerkraut</strong>
+                                <span>Raw, unpasteurized</span>
+                            </div>
+                            <div class="food-item">
+                                <span class="material-icons">coffee</span>
+                                <strong>Kombucha</strong>
+                                <span>Fermented tea</span>
+                            </div>
+                            <div class="food-item">
+                                <span class="material-icons">ramen_dining</span>
+                                <strong>Miso</strong>
+                                <span>Probiotic paste</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="tip-box">
+                        <span class="material-icons">lightbulb</span>
+                        <p><strong>Pro Tip:</strong> Look for "live and active cultures" on yogurt labels. Avoid heavily processed or pasteurized versions.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Topic 3: Water -->
+            <div class="edu-topic-card">
+                <div class="edu-topic-header" onclick="toggleTopic('edu-water')">
+                    <div class="edu-topic-title">
+                        <span class="material-icons">water_drop</span>
+                        <h3>Hydration: Essential for Digestion</h3>
+                    </div>
+                    <span class="material-icons expand-icon">expand_more</span>
+                </div>
+                <div class="edu-topic-content" id="edu-water-content">
+                    <p><strong>Why it matters:</strong> Water helps fiber work properly, prevents constipation, and supports the mucus lining in your intestines that protects beneficial bacteria.</p>
+                    
+                    <h4>Daily Target: 64-100 oz</h4>
+                    
+                    <div class="info-list">
+                        <div class="info-item">
+                            <span class="material-icons">check_circle</span>
+                            <p>Softens stool and prevents constipation</p>
+                        </div>
+                        <div class="info-item">
+                            <span class="material-icons">check_circle</span>
+                            <p>Helps nutrients absorb through intestinal walls</p>
+                        </div>
+                        <div class="info-item">
+                            <span class="material-icons">check_circle</span>
+                            <p>Maintains healthy mucus layer in gut</p>
+                        </div>
+                        <div class="info-item">
+                            <span class="material-icons">check_circle</span>
+                            <p>Supports beneficial bacteria growth</p>
+                        </div>
+                    </div>
+                    
+                    <div class="tip-box">
+                        <span class="material-icons">lightbulb</span>
+                        <p><strong>Pro Tip:</strong> Drink water throughout the day, especially with high-fiber meals. Aim for pale yellow urine as a hydration indicator.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Topic 4: Foods to Limit -->
+            <div class="edu-topic-card">
+                <div class="edu-topic-header" onclick="toggleTopic('edu-limit')">
+                    <div class="edu-topic-title">
+                        <span class="material-icons">warning</span>
+                        <h3>Foods to Limit for Gut Health</h3>
+                    </div>
+                    <span class="material-icons expand-icon">expand_more</span>
+                </div>
+                <div class="edu-topic-content" id="edu-limit-content">
+                    <p><strong>Why it matters:</strong> Certain foods can disrupt your gut microbiome balance, promoting harmful bacteria and causing inflammation.</p>
+                    
+                    <div class="warning-grid">
+                        <div class="warning-item">
+                            <span class="material-icons">candy</span>
+                            <h4>Added Sugar</h4>
+                            <p>Limit: ≤25g/day</p>
+                            <small>Feeds harmful bacteria, causes inflammation</small>
+                        </div>
+                        <div class="warning-item">
+                            <span class="material-icons">fastfood</span>
+                            <h4>Processed Foods</h4>
+                            <p>Limit: ≤2-3 servings/day</p>
+                            <small>Contains additives that harm microbiome</small>
+                        </div>
+                        <div class="warning-item">
+                            <span class="material-icons">liquor</span>
+                            <h4>Artificial Sweeteners</h4>
+                            <p>Minimize use</p>
+                            <small>May negatively impact gut bacteria</small>
+                        </div>
+                        <div class="warning-item">
+                            <span class="material-icons">local_pizza</span>
+                            <h4>Excess Red Meat</h4>
+                            <p>Limit portions</p>
+                            <small>Can promote inflammatory bacteria</small>
+                        </div>
+                    </div>
+                    
+                    <div class="tip-box">
+                        <span class="material-icons">lightbulb</span>
+                        <p><strong>Pro Tip:</strong> Focus on what to add (fiber, fermented foods) rather than just restricting. A diverse, whole-food diet naturally limits harmful foods.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Topic 5: Gut-Brain Connection -->
+            <div class="edu-topic-card">
+                <div class="edu-topic-header" onclick="toggleTopic('edu-brain')">
+                    <div class="edu-topic-title">
+                        <span class="material-icons">psychology</span>
+                        <h3>The Gut-Brain Axis</h3>
+                    </div>
+                    <span class="material-icons expand-icon">expand_more</span>
+                </div>
+                <div class="edu-topic-content" id="edu-brain-content">
+                    <p><strong>Why it matters:</strong> Your gut and brain communicate constantly through the vagus nerve and chemical messengers. A healthy gut supports mental well-being.</p>
+                    
+                    <div class="info-list">
+                        <div class="info-item">
+                            <span class="material-icons">mood</span>
+                            <p><strong>Mood regulation:</strong> 90% of serotonin is produced in the gut</p>
+                        </div>
+                        <div class="info-item">
+                            <span class="material-icons">self_improvement</span>
+                            <p><strong>Stress response:</strong> Gut bacteria influence cortisol levels</p>
+                        </div>
+                        <div class="info-item">
+                            <span class="material-icons">bedtime</span>
+                            <p><strong>Sleep quality:</strong> Gut health affects melatonin production</p>
+                        </div>
+                        <div class="info-item">
+                            <span class="material-icons">psychology_alt</span>
+                            <p><strong>Cognitive function:</strong> Microbiome impacts memory and focus</p>
+                        </div>
+                    </div>
+                    
+                    <div class="tip-box">
+                        <span class="material-icons">lightbulb</span>
+                        <p><strong>Pro Tip:</strong> Manage stress through meditation, exercise, and sleep. Chronic stress harms gut bacteria as much as poor diet.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Topic 6: Quick Tips -->
+            <div class="edu-topic-card">
+                <div class="edu-topic-header" onclick="toggleTopic('edu-tips')">
+                    <div class="edu-topic-title">
+                        <span class="material-icons">tips_and_updates</span>
+                        <h3>Quick Daily Habits for Gut Health</h3>
+                    </div>
+                    <span class="material-icons expand-icon">expand_more</span>
+                </div>
+                <div class="edu-topic-content" id="edu-tips-content">
+                    <div class="habits-list">
+                        <div class="habit-item">
+                            <span class="habit-number">1</span>
+                            <div>
+                                <h4>Eat the Rainbow</h4>
+                                <p>Aim for 30+ different plant foods per week for maximum microbiome diversity</p>
+                            </div>
+                        </div>
+                        <div class="habit-item">
+                            <span class="habit-number">2</span>
+                            <div>
+                                <h4>Don't Skip Breakfast</h4>
+                                <p>Regular meal timing supports healthy circadian rhythms in gut bacteria</p>
+                            </div>
+                        </div>
+                        <div class="habit-item">
+                            <span class="habit-number">3</span>
+                            <div>
+                                <h4>Chew Thoroughly</h4>
+                                <p>Proper chewing aids digestion and reduces bloating</p>
+                            </div>
+                        </div>
+                        <div class="habit-item">
+                            <span class="habit-number">4</span>
+                            <div>
+                                <h4>Move Daily</h4>
+                                <p>Exercise increases beneficial bacteria diversity</p>
+                            </div>
+                        </div>
+                        <div class="habit-item">
+                            <span class="habit-number">5</span>
+                            <div>
+                                <h4>Limit Antibiotics</h4>
+                                <p>Only take when truly necessary - they kill good bacteria too</p>
+                            </div>
+                        </div>
+                        <div class="habit-item">
+                            <span class="habit-number">6</span>
+                            <div>
+                                <h4>Get Quality Sleep</h4>
+                                <p>7-9 hours supports gut barrier function and bacteria balance</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Resources Section -->
+        <div class="edu-resources">
+            <h3>Want to Learn More?</h3>
+            <div class="resource-links">
+                <a href="https://www.health.harvard.edu/topics/gut-health" target="_blank" class="resource-link">
+                    <span class="material-icons">school</span>
+                    <span>Harvard: Gut Health Guide</span>
+                </a>
+                <a href="https://www.nih.gov/news-events/nih-research-matters/gut-microbes-health" target="_blank" class="resource-link">
+                    <span class="material-icons">science</span>
+                    <span>NIH: Gut Microbes Research</span>
+                </a>
+                <a href="https://www.hsph.harvard.edu/nutritionsource/microbiome/" target="_blank" class="resource-link">
+                    <span class="material-icons">menu_book</span>
+                    <span>Nutrition Source: Microbiome</span>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+        <div class="page" id="profile">
+        <div id="auth-container">
+            <!-- Sign In Form -->
+            <div id="signin-form" style="display: block;">
+                <h2>Welcome Back</h2>
+                <form id="signin">
+                    <input type="email" id="signin-email" placeholder="Email" required>
+                    <input type="password" id="signin-password" placeholder="Password" required>
+                    <button type="submit">Sign In</button>
+                </form>
+                <p style="text-align: center; margin-top: 1rem; font-size: 0.9rem;">
+                    Don't have an account? <a href="#" id="show-signup">Sign Up</a>
+                </p>
+            </div>
+
+            <!-- Sign Up Form -->
+            <div id="signup-form" style="display: none;">
+                <h2>Create Account</h2>
+                <form id="signup">
+                    <input type="text" id="signup-name" placeholder="Full Name" required>
+                    <input type="email" id="signup-email" placeholder="Email" required>
+                    <input type="password" id="signup-password" placeholder="Password (min 6 characters)" required>
+                    <button type="submit">Sign Up</button>
+                </form>
+                <p style="text-align: center; margin-top: 1rem; font-size: 0.9rem;">
+                    Already have an account? <a href="#" id="show-signin">Sign In</a>
+                </p>
+            </div>
+
+            <!-- User Profile (shown when logged in) -->
+            <div id="user-profile" style="display: none;">
+                <div class="profile-header">
+                    <div class="profile-avatar">
+                        <span class="material-icons" style="font-size: 48px; color: white;">account_circle</span>
+                    </div>
+                    <div class="profile-info">
+                        <h2 id="user-name-display" style="margin: 0; color: white;">User Name</h2>
+                        <p id="user-email-display" style="margin: 0.25rem 0 0 0; color: rgba(255,255,255,0.9); font-size: 0.9rem;">email@example.com</p>
+                    </div>
+                </div>
+
+                <div class="profile-sections">
+                    <!-- Personal Information Section -->
+                    <div class="profile-section">
+                        <h3><span class="material-icons">person</span> Personal Information</h3>
+                        <form id="personal-info-form">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Full Name</label>
+                                    <input type="text" id="profile-name" placeholder="John Doe" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Age</label>
+                                    <input type="number" id="profile-age" placeholder="25" min="1" max="120">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Sex</label>
+                                    <select id="profile-sex">
+                                        <option value="">Select</option>
+                                        <option value="male">Male</option>
+                                        <option value="female">Female</option>
+                                        <option value="other">Other</option>
+                                        <option value="prefer-not-to-say">Prefer Not To Say</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Activity Level</label>
+                                    <select id="profile-activity">
+                                        <option value="">Select</option>
+                                        <option value="sedentary">Sedentary</option>
+                                        <option value="light">Lightly Active</option>
+                                        <option value="moderate">Moderately Active</option>
+                                        <option value="very">Very Active</option>
+                                        <option value="extra">Extremely Active</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <button type="submit" class="save-btn">
+                                <span class="material-icons">save</span> Save Personal Info
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Health Metrics Section -->
+                    <div class="profile-section">
+                        <h3><span class="material-icons">favorite</span> Health Metrics</h3>
+                        <form id="health-metrics-form">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Weight (lbs)</label>
+                                    <input type="number" id="profile-weight" placeholder="150" min="1">
+                                </div>
+                                <div class="form-group">
+                                    <label>Height (inches)</label>
+                                    <input type="number" id="profile-height" placeholder="68" min="1">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group full-width">
+                                    <label>Dietary Restrictions</label>
+                                    <input type="text" id="profile-dietary" placeholder="e.g., Vegetarian, Gluten-free, Lactose intolerant">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group full-width">
+                                    <label>Health Conditions</label>
+                                    <input type="text" id="profile-conditions" placeholder="e.g., IBS, Crohn's Disease (optional)">
+                                </div>
+                            </div>
+                            <button type="submit" class="save-btn">
+                                <span class="material-icons">save</span> Save Health Metrics
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Daily Goals Section -->
+                    <div class="profile-section">
+                        <h3><span class="material-icons">flag</span> Daily Goals</h3>
+                        <form id="profile-settings">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Fiber Goal (g)</label>
+                                    <input type="number" id="fiber-goal" placeholder="30" min="1" value="30">
+                                </div>
+                                <div class="form-group">
+                                    <label>Probiotic Goal (servings)</label>
+                                    <input type="number" id="probiotic-goal" placeholder="5" min="1" value="5">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Water Goal (oz)</label>
+                                    <input type="number" id="water-goal" placeholder="64" min="1" value="64">
+                                </div>
+                                <div class="form-group">
+                                    <label>Calorie Goal</label>
+                                    <input type="number" id="calorie-goal" placeholder="2000" min="1" value="2000">
+                                </div>
+                            </div>
+                            <button type="submit" class="save-btn">
+                                <span class="material-icons">save</span> Save Goals
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Account Actions -->
+                    <div class="profile-section">
+                        <h3><span class="material-icons">settings</span> Account</h3>
+                        <button id="signout-btn" class="signout-btn">
+                            <span class="material-icons">logout</span> Sign Out
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="page" id="chatbot">
+        <div class="chatbot-container">
+            <div class="chatbot-header">
+                <div class="chatbot-header-content">
+                    <span class="material-icons" style="font-size: 2rem; color: #667eea;">smart_toy</span>
+                    <div>
+                        <h2>AI Gut Health Coach</h2>
+                        <p class="chatbot-status">Ready to help you optimize your gut health</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Action Buttons -->
+            <div class="quick-actions">
+                <button class="quick-action-btn" data-prompt="Design a personalized daily meal plan for me based on my current stats and goals">
+                    <span class="material-icons">restaurant_menu</span>
+                    <span>Design Meal Plan</span>
+                </button>
+                <button class="quick-action-btn" data-prompt="What foods should I focus on to improve my gut health score?">
+                    <span class="material-icons">lightbulb</span>
+                    <span>Improvement Tips</span>
+                </button>
+                <button class="quick-action-btn" data-prompt="Explain my current gut health status and what it means">
+                    <span class="material-icons">analytics</span>
+                    <span>Health Analysis</span>
+                </button>
+                <button class="quick-action-btn" data-prompt="Suggest gut-friendly snacks I can have today">
+                    <span class="material-icons">cookie</span>
+                    <span>Snack Ideas</span>
+                </button>
+            </div>
+
+            <!-- Chat Messages Area -->
+            <div class="chat-messages" id="chat-messages">
+                <div class="chat-message bot-message">
+                    <div class="message-avatar">
+                        <span class="material-icons">smart_toy</span>
+                    </div>
+                    <div class="message-content">
+                        <p>Hi! I'm your personal gut health AI coach. I have access to your profile, current nutrition stats, and goals. How can I help you today?</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Input Area -->
+            <div class="chat-input-container">
+                <textarea 
+                    id="chat-input" 
+                    placeholder="Ask me anything about your gut health!"
+                    rows="1"
+                ></textarea>
+                <button id="send-chat-btn" class="send-btn">
+                    <span class="material-icons">send</span>
+                </button>
+            </div>
+        </div>
+    </div>
+    </main>
+
+    <nav id="bottom-nav">
+        <button class="nav-btn active" data-target="dashboard">
+            <span class="material-icons">dashboard</span>
+            <span>Dashboard</span>
+        </button>
+        <button class="nav-btn" data-target="education">
+            <span class="material-icons">school</span>
+            <span>Education</span>
+        </button>
+        <button class="nav-btn" data-target="chatbot">
+            <span class="material-icons">smart_toy</span>
+            <span>AI Coach</span>
+        </button>
+    </nav>
+
+    <script src="app.js"></script>
+</body>
+</html>
