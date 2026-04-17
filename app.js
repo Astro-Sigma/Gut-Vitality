@@ -1047,16 +1047,44 @@ ${context}`
     }
 }*/
 
-const response = await fetch('/api/chat', {
-    method: 'POST',
-    headers: {
-        'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-        message: userMessage,
-        context: context
-    })
-});
+async function sendMessageToAI(userMessage) {
+    const user = window.auth.currentUser;
+    if (!user) {
+        addMessage("Please sign in to use the AI coach.", false);
+        return;
+    }
+
+    addMessage(userMessage, true);
+    showTypingIndicator();
+    sendChatBtn.disabled = true;
+
+    try {
+        const context = await getUserContext();
+
+        const response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                message: userMessage,
+                context: context
+            })
+        });
+
+        const data = await response.json();
+
+        removeTypingIndicator();
+        addMessage(data.reply || "No response received.", false);
+
+    } catch (error) {
+        console.error("Chat error:", error);
+        removeTypingIndicator();
+        addMessage("Error connecting to AI service.", false);
+    } finally {
+        sendChatBtn.disabled = false;
+    }
+}
 
 const data = await response.json();
 const aiResponse = data.reply;
