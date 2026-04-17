@@ -602,80 +602,6 @@ function updateChallengeTimer(){
         gutScoreValue.textContent = gutScore;
     }
 
-    // ============ WEEKLY TREND CHART ============
-    /*let weeklyData = [
-        { date: 'Mon', score: 65 },
-        { date: 'Tue', score: 70 },
-        { date: 'Wed', score: 68 },
-        { date: 'Thu', score: 75 },
-        { date: 'Fri', score: 72 },
-        { date: 'Sat', score: 78 },
-        { date: 'Sun', score: 0 }
-    ];
-
-    function drawTrendChart() {
-        const chartCtx = document.getElementById('trend-chart').getContext('2d');
-        
-        if (window.trendChart) {
-            window.trendChart.destroy();
-        }
-        
-        window.trendChart = new Chart(chartCtx, {
-            type: 'line',
-            data: {
-                labels: weeklyData.map(d => d.date),
-                datasets: [{
-                    label: 'Gut Score',
-                    data: weeklyData.map(d => d.score),
-                    borderColor: '#56c596',
-                    backgroundColor: 'rgba(86, 197, 150, 0.1)',
-                    tension: 0.4,
-                    fill: true,
-                    pointRadius: 5,
-                    pointHoverRadius: 7,
-                    pointBackgroundColor: '#56c596',
-                    pointBorderColor: '#fff',
-                    pointBorderWidth: 2
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        backgroundColor: 'rgba(15, 76, 117, 0.9)',
-                        padding: 12,
-                        titleColor: '#fff',
-                        bodyColor: '#fff',
-                        callbacks: {
-                            label: function(context) {
-                                return 'Score: ' + context.parsed.y;
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        max: 100,
-                        grid: { color: 'rgba(0, 0, 0, 0.05)' },
-                        ticks: { color: '#666' }
-                    },
-                    x: {
-                        grid: { display: false },
-                        ticks: { color: '#666' }
-                    }
-                }
-            }
-        });
-    }*/
-
-    /*function updateTodaysScore() {
-        weeklyData[weeklyData.length - 1].score = gutScore;
-        drawTrendChart();
-    }*/
-
 
     // ============ SCORE BREAKDOWN POPUP ============
     const circleContainer = document.querySelector('.circle-container');
@@ -944,66 +870,6 @@ function updateChallengeTimer(){
 //const getAISuggestionsBtn = document.getElementById('get-ai-suggestions-btn');
 //const aiSuggestionsResult = document.getElementById('ai-suggestions-result');
 
-const GROQ_API_KEY = process.env.GROQ_API_KEY; // Replace with your key
-
-/*getAISuggestionsBtn.addEventListener('click', async () => {
-    const user = window.auth.currentUser;
-    if (!user) {
-        alert('Please sign in to get AI suggestions');
-        showPage('profile');
-        return;
-    }
-
-    getAISuggestionsBtn.disabled = true;
-    getAISuggestionsBtn.innerHTML = '<span class="material-icons">hourglass_empty</span> Thinking...';
-    
-    try {
-        const fiberDeficit = Math.max(0, 30 - fiber);
-        const probioticDeficit = Math.max(0, 5 - probiotics);
-        
-        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${GROQ_API_KEY}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                model: 'llama-3.1-8b-instant',
-                messages: [{
-                    role: 'system',
-                    content: 'You are a helpful nutritionist assistant. Provide concise, practical food suggestions.'
-                }, {
-                    role: 'user',
-                    content: `I need ${fiberDeficit}g more fiber and ${probioticDeficit} more probiotic servings to reach my daily goals. Suggest exactly 3 specific foods that would help. Format as: "1. [Food] - [fiber]g fiber, [probiotics] probiotics"`
-                }],
-                max_tokens: 250,
-                temperature: 0.7
-            })
-        });
-        
-        const data = await response.json();
-        const suggestions = data.choices[0].message.content;
-        
-        // Display results
-        aiSuggestionsResult.innerHTML = `
-            <h4><span class="material-icons">auto_awesome</span> AI Recommendations</h4>
-            <p style="margin-bottom: 0.5rem; font-size: 0.9rem; color: #666;">Based on your current intake:</p>
-            <div style="white-space: pre-line;">${suggestions}</div>
-        `;
-        aiSuggestionsResult.style.display = 'block';
-        
-    } catch (error) {
-        console.error('AI Error:', error);
-        aiSuggestionsResult.innerHTML = `
-            <h4 style="color: #d00000;"><span class="material-icons">error</span> Error</h4>
-            <p>Unable to get suggestions right now. Please try again.</p>
-        `;
-        aiSuggestionsResult.style.display = 'block';
-    } finally {
-        getAISuggestionsBtn.disabled = false;
-        getAISuggestionsBtn.innerHTML = '<span class="material-icons">lightbulb</span> Get AI Food Suggestions';
-    }
-    });*/
 
     // ============ AI CHATBOT ============
 const chatMessages = document.getElementById('chat-messages');
@@ -1126,7 +992,7 @@ function removeTypingIndicator() {
 }
 
 // Send message to AI
-async function sendMessageToAI(userMessage) {
+/*async function sendMessageToAI(userMessage) {
     const user = window.auth.currentUser;
     if (!user) {
         addMessage("Please sign in to use the AI coach.", false);
@@ -1179,7 +1045,21 @@ ${context}`
     } finally {
         sendChatBtn.disabled = false;
     }
-}
+}*/
+
+const response = await fetch('/api/chat', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+        message: userMessage,
+        context: context
+    })
+});
+
+const data = await response.json();
+const aiResponse = data.reply;
 
 // Send button click
 sendChatBtn.addEventListener('click', () => {
