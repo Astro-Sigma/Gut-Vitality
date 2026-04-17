@@ -1086,9 +1086,6 @@ async function sendMessageToAI(userMessage) {
     }
 }
 
-const data = await response.json();
-const aiResponse = data.reply;
-
 // Send button click
 sendChatBtn.addEventListener('click', () => {
     const message = chatInput.value.trim();
