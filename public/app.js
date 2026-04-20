@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } = window.firebaseImports.auth;
     const { doc, setDoc, getDoc, updateDoc, collection, addDoc, query, where, getDocs, deleteDoc } = window.firebaseImports.firestore;
 
-    let debugOffsetDays = -3;
+    let debugOffsetDays = 0;
 
     const panel = document.getElementById('water-panel');
 
@@ -229,10 +229,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.mealsByDay = mealsByDay;
         renderMeals();
         recalculateStats();
+
+        const summaries = await loadDailySummaries(userId);
+        window.summariesByDay = {};
+        summaries.forEach(s => {
+            window.summariesByDay[s.dateKey] = s;
+        });
     }
 
     async function deleteMealFromFirestore(mealId) {
         await deleteDoc(doc(window.db, 'meals', mealId));
+    }
+
+    async function saveDailySummary(userId, dateKey, stats, gutScore) {
+        await setDoc(doc(window.db, 'daily-summaries', `${userId}-${dateKey}`), {
+            userId,
+            dateKey,
+            ...stats,
+            gutScore,
+            updatedAt: new Date()
+        });
     }
     
     // ================= WEEKLY CHALLENGE SYSTEM =================
@@ -641,6 +657,33 @@ document.getElementById('close-water-ui').addEventListener('click', async () => 
         
         updateProgressBars(totalWater);
         drawRings();
+
+        if (window.auth?.currentUser) {
+            saveDailySummary(window.auth.currentUser.uid, todayKey, {
+                fiber,
+                water: water + manualWater,
+                fermented,
+                veggies,
+                sugar,
+                processed
+            }, gutScore);
+        }
+    }
+
+    async function loadDailySummaries(userId) {
+        const q = query(
+            collection(window.db, 'daily-summaries'),
+            where('userId', '==', userId)
+        );
+
+        const snapshot = await getDocs(q);
+
+        const summaries = [];
+        snapshot.forEach(docSnap => {
+            summaries.push(docSnap.data());
+        });
+
+        return summaries;
     }
 
     function updateProgressBars(totalWater) {
@@ -769,13 +812,16 @@ document.getElementById('close-water-ui').addEventListener('click', async () => 
             const dayGroup = document.createElement('div');
             dayGroup.className = 'meal-day-group';
 
-            dayGroup.innerHTML = `
-                <div class="meal-day-title ${isToday ? 'today' : 'collapsed'}">
-                    ${day}
-                    ${isToday ? '' : '<span class="expand-hint">▼</span>'}
-                </div>
-                <div class="meal-day-content ${isToday ? 'expanded' : 'collapsed'}"></div>
-            `;
+            const score = window.summariesByDay?.[day]?.gutScore;
+
+        dayGroup.innerHTML = `
+            <div class="meal-day-title ${isToday ? 'today' : 'collapsed'}">
+                ${day}
+                ${score !== undefined ? `<span class="day-score">${score}/100</span>` : ''}
+                ${isToday ? '' : '<span class="expand-hint">▼</span>'}
+            </div>
+            <div class="meal-day-content ${isToday ? 'expanded' : 'collapsed'}"></div>
+        `;
 
             const title = dayGroup.querySelector('.meal-day-title');
             const content = dayGroup.querySelector('.meal-day-content');
