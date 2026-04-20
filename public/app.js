@@ -377,7 +377,7 @@ async function loadLeaderboard() {
 }
 
 // ---------- Load Daily Question ----------
-/*async function loadDailyQuestion(){
+async function loadDailyQuestion(){
     console.log("loadDailyQuestion() called");
     const questionContent = document.getElementById('daily-question-content');
     if(!questionContent){
@@ -451,7 +451,7 @@ async function loadLeaderboard() {
         console.error("Error loading daily question:",err);
         questionContent.innerHTML='<div class="loading-message">Error loading question</div>';
     }
-}*/
+}
 
 let questionHistory = [];
 
@@ -502,7 +502,7 @@ function renderQuestion(q) {
             feedback.innerHTML = `
                 <strong>${selected === correct ? "✓ Correct" : "✗ Incorrect"}</strong>
                 <div>${q.explanation}</div>
-                <button id="next-question-btn">Next Question →</button>
+                <button id="next-question-btn">Next Question</button>
             `;
 
             document.getElementById('next-question-btn')
@@ -642,7 +642,7 @@ document.getElementById('close-water-ui').addEventListener('click', async () => 
     document.body.style.visibility = 'visible';
 
     await loadLeaderboard();
-    await loadInfiniteQuestion();
+    await loadDailyQuestion();
     
     if (!window.challengeTimerInitialized) {
         updateChallengeTimer();
