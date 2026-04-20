@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } = window.firebaseImports.auth;
     const { doc, setDoc, getDoc, updateDoc, collection, addDoc, query, where, getDocs, deleteDoc } = window.firebaseImports.firestore;
 
+    
 
     const panel = document.getElementById('water-panel');
 
@@ -187,9 +188,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         const user = window.auth.currentUser;
         if (!user) return null;
 
+        const dateKey = new Date().toDateString();
+
         const docRef = await addDoc(collection(window.db, 'meals'), {
             userId: user.uid,
             ...meal,
+            dateKey: dateKey,
             createdAt: new Date()
         });
 
@@ -199,12 +203,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function loadUserMeals(userId) {
         const q = query(collection(window.db, 'meals'), where('userId', '==', userId));
         const querySnapshot = await getDocs(q);
+
+        const mealsByDay = {};
         
-        sampleMeals.length = 0;
         querySnapshot.forEach((docSnap) => {
-            sampleMeals.push({ id: docSnap.id, ...docSnap.data() });
+            const data = docSnap.data();
+
+            const day = data.dateKey || new Date(data.createdAt).toDateString();
+
+            if (!mealsByDay[day]) {
+                mealsByDay[day] = [];
+            }
+
+            mealsByDay[day].push({
+                id: docSnap.id,
+                ...data
+            });
         });
 
+        window.mealsByDay = mealsByDay;
         renderMeals();
         recalculateStats();
     }
@@ -601,12 +618,17 @@ document.getElementById('close-water-ui').addEventListener('click', async () => 
     }
 
     function recalculateStats() {
-        fiber = sampleMeals.reduce((total, meal) => total + (meal.fiber || 0), 0);
-        water = sampleMeals.reduce((total, meal) => total + (meal.water || 0), 0);
-        fermented = sampleMeals.reduce((total, meal) => total + (meal.fermented || 0), 0);
-        veggies = sampleMeals.reduce((total, meal) => total + (meal.veggies || 0), 0);
-        sugar = sampleMeals.reduce((total, meal) => total + (meal.sugar || 0), 0);
-        processed = sampleMeals.reduce((total, meal) => total + (meal.processed || 0), 0);
+        const todayKey = new Date().toDateString();
+        const todayMeals = (window.mealsByDay && window.mealsByDay[todayKey]) 
+            ? window.mealsByDay[todayKey] 
+            : [];
+
+        fiber = todayMeals.reduce((total, meal) => total + (meal.fiber || 0), 0);
+        water = todayMeals.reduce((total, meal) => total + (meal.water || 0), 0);
+        fermented = todayMeals.reduce((total, meal) => total + (meal.fermented || 0), 0);
+        veggies = todayMeals.reduce((total, meal) => total + (meal.veggies || 0), 0);
+        sugar = todayMeals.reduce((total, meal) => total + (meal.sugar || 0), 0);
+        processed = todayMeals.reduce((total, meal) => total + (meal.processed || 0), 0);
         
         const totalWater = water + manualWater;
 
@@ -724,39 +746,59 @@ document.getElementById('close-water-ui').addEventListener('click', async () => 
     // ============ RENDER MEALS ============
     function renderMeals() {
         mealsList.innerHTML = '';
-        sampleMeals.forEach((meal, index) => {
-            const card = document.createElement('div');
-            card.className = 'meal-card';
-            card.innerHTML = `
-                <button class="delete-btn" data-index="${index}">&times;</button>
-                <img src="${meal.img}" alt="${meal.name}">
-                <div class="meal-info">
-                    <span class="meal-name">${meal.name}</span>
-                    <span>Fiber: ${meal.fiber}g</span>
-                    <span>Water: ${meal.water}oz</span>
-                    <span>Fermented: ${meal.fermented}</span>
-                    <span>F+V: ${meal.veggies}</span>
-                    <span>Sugar: ${meal.sugar}g</span>
-                    <span>Processed: ${meal.processed}</span>
-                </div>
+
+        const mealsByDay = window.mealsByDay || {};
+
+        const sortedDays = Object.keys(mealsByDay)
+            .sort((a, b) => new Date(b) - new Date(a)); // newest first
+
+        if (sortedDays.length === 0) {
+            mealsList.innerHTML = `<p style="opacity:0.6;">No meals logged yet.</p>`;
+            return;
+        }
+
+        sortedDays.forEach(day => {
+            const dayGroup = document.createElement('div');
+            dayGroup.className = 'meal-day-group';
+
+            dayGroup.innerHTML = `
+                <div class="meal-day-title">${day}</div>
             `;
-            card.addEventListener('mouseenter', () => card.style.transform = 'scale(1.05)');
-            card.addEventListener('mouseleave', () => card.style.transform = 'scale(1)');
-            
-            const deleteBtn = card.querySelector('.delete-btn');
-            deleteBtn.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                
-                if (meal.id) {
-                    await deleteMealFromFirestore(meal.id);
-                }
-                
-                sampleMeals.splice(index, 1);
-                recalculateStats();
-                renderMeals();
+
+            mealsByDay[day].forEach((meal) => {
+                const card = document.createElement('div');
+                card.className = 'meal-card';
+
+                card.innerHTML = `
+                    <button class="delete-btn">&times;</button>
+                    <img src="${meal.img}">
+                    <div class="meal-info">
+                        <span class="meal-name">${meal.name}</span>
+                        <span>Fiber: ${meal.fiber}g</span>
+                        <span>Water: ${meal.water}oz</span>
+                        <span>Fermented: ${meal.fermented}</span>
+                        <span>Veggies: ${meal.veggies}</span>
+                        <span>Sugar: ${meal.sugar}g</span>
+                        <span>Processed: ${meal.processed}</span>
+                    </div>
+                `;
+
+                // delete logic
+                card.querySelector('.delete-btn').addEventListener('click', async () => {
+                    if (meal.id) {
+                        await deleteMealFromFirestore(meal.id);
+                    }
+
+                    mealsByDay[day] = mealsByDay[day].filter(m => m.id !== meal.id);
+
+                    recalculateStats();
+                    renderMeals();
+                });
+
+                dayGroup.appendChild(card);
             });
-            
-            mealsList.appendChild(card);
+
+            mealsList.appendChild(dayGroup);
         });
     }
 
