@@ -1856,3 +1856,45 @@ button[type="submit"]:hover {
     box-sizing: border-box;
     overflow: hidden;
 }
+
+#next-question-btn {
+    margin-top: 12px;
+    padding: 10px 18px;
+    font-size: 14px;
+    font-weight: 600;
+
+    border: none;
+    border-radius: 999px;
+
+    background: linear-gradient(135deg, #56c596, #3bb78f);
+    color: white;
+
+    cursor: pointer;
+    transition: all 0.25s ease;
+
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+#next-question-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+}
+
+#next-question-btn:active {
+    transform: scale(0.96);
+}
+
+#next-question-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+#next-question-btn::after {
+    content: " →";
+    transition: transform 0.2s ease;
+    display: inline-block;
+}
+
+#next-question-btn:hover::after {
+    transform: translateX(4px);
+}
