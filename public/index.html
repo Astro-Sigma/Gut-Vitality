@@ -49,6 +49,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Poppins:wght@600&display=swap" rel="stylesheet">
 </head>
 <body>
+    <div id="loading-screen">
+        Loading...
+    </div>
     <header id="app-header">
     <div class="header-left">
         <img src="gutvitality.png" alt="Gut Vitality Logo" id="app-logo">
@@ -81,7 +84,10 @@
         </div>
 
         <div class="progress-container">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
             <span>Water Intake</span>
+            <button id="open-water-ui" type="button">+ Add Water</button>
+            </div>
             <div class="progress-bar"><div id="water-progress" class="progress-fill water"></div></div>
             <span id="water-value">0 / 64 oz</span>
         </div>
@@ -127,6 +133,27 @@
 
                 <div id="add-meal">
                     <button id="add-meal-button" type ="submit">Add Meal</button>
+                </div>
+            </div>
+        </div>
+        <div id="water-panel" class="hidden">
+            <div class="water-cup-container">
+                <h2 class="water-title">Add Water Below</h2>
+                <div class="cup" id="water-cup">
+                    <div class="water-fill" id="water-fill"></div>
+                </div>
+
+                <input 
+                    type="range" 
+                    id="water-slider" 
+                    min="0" 
+                    max="64" 
+                    value="0"
+                />
+
+                <div class="water-display">
+                    <span id="water-amount">0 oz</span>
+                    <button id="close-water-ui">Save & Close</button>
                 </div>
             </div>
         </div>

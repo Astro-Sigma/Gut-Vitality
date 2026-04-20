@@ -7,12 +7,22 @@ async function waitForFirebase() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+    
     console.log('DOM loaded, waiting for Firebase...');
     await waitForFirebase();
     console.log('Firebase ready, initializing app...');
 
     const { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } = window.firebaseImports.auth;
     const { doc, setDoc, getDoc, updateDoc, collection, addDoc, query, where, getDocs, deleteDoc } = window.firebaseImports.firestore;
+
+
+    const panel = document.getElementById('water-panel');
+
+    document.getElementById('open-water-ui').addEventListener('click', () => {
+        draftWater = 0;
+        panel.classList.remove('hidden');
+        syncWaterUI();
+    });
 
     // ============ PAGE NAVIGATION ============
     const pages = document.querySelectorAll('.page');
@@ -32,6 +42,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const profileShortcut = document.getElementById('profile-shortcut');
     profileShortcut.addEventListener('click', () => showPage('profile'));
+
+    const slider = document.getElementById('water-slider');
+    const fill = document.getElementById('water-fill');
+    const amountText = document.getElementById('water-amount');
+
+    let manualWater = 0;
+    let draftWater = 0;
+
+    slider.addEventListener("input", () => {
+        draftWater = Number(slider.value);
+        syncWaterUI();
+    });
 
     // ============ IMAGE COMPRESSION ============
     function compressImage(file, maxWidth = 800) {
@@ -408,8 +430,40 @@ function updateChallengeTimer(){
     if(timerEl) timerEl.textContent=`Resets in ${days}d ${hours}h`;
 }
 
+    function routeUser(user) {
+    if (user) {
+        showPage('dashboard'); // your main app page
+    } else {
+        showPage('profile'); // or 'signin' depending on your structure
+    }
+}
+async function updateWaterToFirestore(amount) {
+    const user = window.auth.currentUser;
+    if (!user) return;
+
+    await updateDoc(doc(window.db, 'users', user.uid), {
+        manualWater: amount
+    });
+}
+document.getElementById('close-water-ui').addEventListener('click', async () => {
+    const user = window.auth.currentUser;
+    if (!user) return;
+
+    manualWater += draftWater;
+
+    await updateDoc(doc(window.db, 'users', user.uid), {
+        manualWater: manualWater
+    });
+
+    draftWater = 0;
+    slider.value = 0;
+
+    recalculateStats();
+    panel.classList.add("hidden");
+});
     // Auth State Observer
     onAuthStateChanged(window.auth, async (user) => {
+    routeUser(user);
     if (user) {
         signinForm.style.display = 'none';
         signupForm.style.display = 'none';
@@ -417,6 +471,9 @@ function updateChallengeTimer(){
 
         const userDoc = await getDoc(doc(window.db, 'users', user.uid));
         const userData = userDoc.data();
+        manualWater = userData.manualWater || 0;
+        syncWaterUI();
+        recalculateStats();
 
         // Header display
         document.getElementById('user-name-display').textContent = userData.name || 'User';
@@ -451,6 +508,10 @@ function updateChallengeTimer(){
 
     console.log("Auth state changed. User:", user ? user.email : "Not signed in");
     console.log("Loading challenge features...");
+
+    document.getElementById('loading-screen').style.display = 'none';
+    document.body.style.visibility = 'visible';
+
     await loadLeaderboard();
     await loadDailyQuestion();
     
@@ -547,23 +608,24 @@ function updateChallengeTimer(){
         sugar = sampleMeals.reduce((total, meal) => total + (meal.sugar || 0), 0);
         processed = sampleMeals.reduce((total, meal) => total + (meal.processed || 0), 0);
         
-        gutScore = calculateGutScore(fiber, water, fermented, veggies, sugar, processed);
+        const totalWater = water + manualWater;
+
+        gutScore = calculateGutScore(fiber, totalWater, fermented, veggies, sugar, processed);
         
-        updateProgressBars();
+        updateProgressBars(totalWater);
         drawRings();
-        //updateTodaysScore();
     }
 
-    function updateProgressBars() {
+    function updateProgressBars(totalWater) {
         fiberFill.style.width = (fiber / 30 * 100) + '%';
-        waterFill.style.width = (water / 64 * 100) + '%';
+        waterFill.style.width = (totalWater / 64 * 100) + '%';
         fermentedFill.style.width = (fermented / 3 * 100) + '%';
         veggiesFill.style.width = (veggies / 5 * 100) + '%';
         sugarFill.style.width = (sugar / 25 * 100) + '%';
         processedFill.style.width = (processed / 3 * 100) + '%';
         
         document.getElementById('fiber-value').textContent = `${fiber} / 30g`;
-        document.getElementById('water-value').textContent = `${water} / 64 oz`;
+        document.getElementById('water-value').textContent = `${totalWater} / 64 oz`;
         document.getElementById('fermented-value').textContent = `${fermented} / 3 servings`;
         document.getElementById('veggies-value').textContent = `${veggies} / 5 servings`;
         document.getElementById('sugar-value').textContent = `${sugar} / 25g`;
@@ -611,7 +673,8 @@ function updateChallengeTimer(){
 
     function updateScoreBreakdown() {
         const fiberScore = Math.min((25/30) * fiber, 25);
-        const waterScore = Math.min((15/64) * water, 15);
+        const totalWater = water + manualWater;
+        const waterScore = Math.min((15/64) * totalWater, 15);
         const fermentedScore = Math.min((15/3) * fermented, 15);
         const veggiesScore = Math.min((15/5) * veggies, 15);
         const sugarPenalty = Math.min((25/50) * sugar, 25);
@@ -642,6 +705,21 @@ function updateChallengeTimer(){
         scoreOverlay.style.display = 'none';
         scoreBreakdownPopup.style.display = 'none';
     });
+
+    function syncWaterUI() {
+        const slider = document.getElementById("water-slider");
+        const fill = document.getElementById("water-fill");
+        const text = document.getElementById("water-amount");
+
+        if (!slider || !fill || !text) return;
+
+        slider.value = draftWater;
+
+        const percent = (draftWater / 64) * 100;
+        fill.style.height = percent + "%";
+
+        text.textContent = `${draftWater} oz to add`;
+    }
 
     // ============ RENDER MEALS ============
     function renderMeals() {
