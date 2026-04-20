@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } = window.firebaseImports.auth;
     const { doc, setDoc, getDoc, updateDoc, collection, addDoc, query, where, getDocs, deleteDoc } = window.firebaseImports.firestore;
 
-    
+    let debugOffsetDays = -1;
 
     const panel = document.getElementById('water-panel');
 
@@ -156,7 +156,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('signout-btn').addEventListener('click', async () => {
         try {
             await signOut(window.auth);
-            sampleMeals.length = 0;
+            window.mealsByDay = {};
             renderMeals();
             recalculateStats();
         } catch (error) {
@@ -188,7 +188,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const user = window.auth.currentUser;
         if (!user) return null;
 
-        const dateKey = new Date().toDateString();
+        const date = new Date();
+        date.setDate(date.getDate() + debugOffsetDays);
+        const dateKey = date.toDateString();
 
         const docRef = await addDoc(collection(window.db, 'meals'), {
             userId: user.uid,
@@ -209,7 +211,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         querySnapshot.forEach((docSnap) => {
             const data = docSnap.data();
 
-            const day = data.dateKey || new Date(data.createdAt).toDateString();
+            const day =
+                data.dateKey ||
+                data.createdAt?.toDate?.()?.toDateString() ||
+                new Date().toDateString();
 
             if (!mealsByDay[day]) {
                 mealsByDay[day] = [];
@@ -791,6 +796,10 @@ document.getElementById('close-water-ui').addEventListener('click', async () => 
 
                     mealsByDay[day] = mealsByDay[day].filter(m => m.id !== meal.id);
 
+                    if (mealsByDay[day].length === 0) {
+                        delete mealsByDay[day];
+                    }
+
                     recalculateStats();
                     renderMeals();
                 });
@@ -858,7 +867,15 @@ document.getElementById('close-water-ui').addEventListener('click', async () => 
         const mealId = await saveMealToFirestore(newMeal);
         newMeal.id = mealId;
         
-        sampleMeals.push(newMeal);
+        const date = new Date();
+        date.setDate(date.getDate() + debugOffsetDays);
+        const dateKey = date.toDateString();
+        newMeal.dateKey = dateKey;
+
+        if (!window.mealsByDay) window.mealsByDay = {};
+        if (!window.mealsByDay[dateKey]) window.mealsByDay[dateKey] = [];
+
+        window.mealsByDay[dateKey].push(newMeal);
         recalculateStats();
         renderMeals();
         
@@ -1017,6 +1034,8 @@ async function getUserContext() {
     if (!user) return "User not signed in.";
     
     const profile = await getUserProfile();
+    const allMeals = Object.values(window.mealsByDay || {}).flat();
+    const recentMeals = allMeals.slice(-3).map(m => m.name).join(', ') || 'None yet';
     
     return `User Profile:
 - Name: ${profile.name || 'Not set'}
@@ -1044,7 +1063,7 @@ Today's Intake:
 - Current Gut Score: ${gutScore}/100
 - Meals logged: ${sampleMeals.length}
 
-Recent meals: ${sampleMeals.slice(-3).map(m => m.name).join(', ') || 'None yet'}`;
+Recent meals: ${recentMeals}`;
 }
 
 // Add message to chat
