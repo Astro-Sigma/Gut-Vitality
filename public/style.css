@@ -189,6 +189,18 @@ h2.dashboard-title {
   z-index: 1;
 }
 
+@media (max-width: 900px) {
+  #meals-list {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 500px) {
+  #meals-list {
+    grid-template-columns: 1fr;
+  }
+}
+
 .meal-card { 
   min-width: 140px; 
   background: #ffffff; 
@@ -1819,4 +1831,28 @@ button[type="submit"]:hover {
 
 .meal-day-group {
     margin-bottom: 6px;
+}
+
+.day-score {
+    display: block;
+    margin: 6px 0;
+    font-weight: 600;
+    color: #56c596;
+}
+
+.day-ring {
+    width: 80px;
+    height: 80px;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.meal-day-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
 }

@@ -25,6 +25,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         syncWaterUI();
     });
 
+    function getDateKey(date = new Date()) {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+
     // ============ PAGE NAVIGATION ============
     const pages = document.querySelectorAll('.page');
     const navBtns = document.querySelectorAll('.nav-btn');
@@ -190,7 +197,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const date = new Date();
         date.setDate(date.getDate() + debugOffsetDays);
-        const dateKey = date.toDateString();
+        const dateKey = getDateKey(date);
 
         const docRef = await addDoc(collection(window.db, 'meals'), {
             userId: user.uid,
@@ -212,9 +219,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             const data = docSnap.data();
 
             const day =
-                data.dateKey ||
-                data.createdAt?.toDate?.()?.toDateString() ||
-                new Date().toDateString();
+                normalizeDateKey(data.dateKey) ||
+                getDateKey(data.createdAt?.toDate?.() || new Date());
 
             if (!mealsByDay[day]) {
                 mealsByDay[day] = [];
@@ -227,14 +233,41 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         window.mealsByDay = mealsByDay;
+        window.summariesByDay = buildSummariesFromMeals(mealsByDay);
+        console.log("Loaded summaries:", window.summariesByDay);
         renderMeals();
         recalculateStats();
+    }
 
-        const summaries = await loadDailySummaries(userId);
-        window.summariesByDay = {};
-        summaries.forEach(s => {
-            window.summariesByDay[s.dateKey] = s;
-        });
+    function buildSummariesFromMeals(mealsByDay) {
+        const summaries = {};
+
+        for (const day in mealsByDay) {
+            const meals = mealsByDay[day];
+
+            const fiber = meals.reduce((t, m) => t + (m.fiber || 0), 0);
+            const water = meals.reduce((t, m) => t + (m.water || 0), 0);
+            const fermented = meals.reduce((t, m) => t + (m.fermented || 0), 0);
+            const veggies = meals.reduce((t, m) => t + (m.veggies || 0), 0);
+            const sugar = meals.reduce((t, m) => t + (m.sugar || 0), 0);
+            const processed = meals.reduce((t, m) => t + (m.processed || 0), 0);
+
+            const score = calculateGutScore(
+                fiber,
+                water,
+                fermented,
+                veggies,
+                sugar,
+                processed
+            );
+
+            summaries[day] = {
+                dateKey: day,
+                gutScore: score
+            };
+        }
+
+        return summaries;
     }
 
     async function deleteMealFromFirestore(mealId) {
@@ -363,7 +396,7 @@ async function loadDailyQuestion(){
     const questionIndex = getTodayQuestionIndex();
     const question = dailyQuestions[questionIndex];
     const weekKey = getWeekKey();
-    const todayKey = new Date().toDateString();
+    const todayKey = getDateKey(new Date());
 
     try {
         console.log("Checking if user has answered today's question...");
@@ -639,7 +672,7 @@ document.getElementById('close-water-ui').addEventListener('click', async () => 
     }
 
     function recalculateStats() {
-        const todayKey = new Date().toDateString();
+        const todayKey = getDateKey(new Date());
         const todayMeals = (window.mealsByDay && window.mealsByDay[todayKey]) 
             ? window.mealsByDay[todayKey] 
             : [];
@@ -668,6 +701,20 @@ document.getElementById('close-water-ui').addEventListener('click', async () => 
                 processed
             }, gutScore);
         }
+
+        console.log("TODAY KEY:", getDateKey(new Date()));
+        console.log("TODAY MEALS:", window.mealsByDay?.[getDateKey(new Date())]);
+        console.log("ALL KEYS:", Object.keys(window.mealsByDay || {}));
+    }
+
+    function normalizeDateKey(key) {
+        if (!key) return null;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(key)) return key;
+
+        const parsed = new Date(key);
+        if (!isNaN(parsed)) return getDateKey(parsed);
+
+        return key;
     }
 
     async function loadDailySummaries(userId) {
@@ -805,7 +852,7 @@ document.getElementById('close-water-ui').addEventListener('click', async () => 
             return;
         }
 
-        const todayKey = new Date().toDateString();
+        const todayKey = getDateKey(new Date());
 
         sortedDays.forEach(day => {
             const isToday = day === todayKey;
@@ -817,7 +864,7 @@ document.getElementById('close-water-ui').addEventListener('click', async () => 
         dayGroup.innerHTML = `
             <div class="meal-day-title ${isToday ? 'today' : 'collapsed'}">
                 ${day}
-                ${score !== undefined ? `<span class="day-score">${score}/100</span>` : ''}
+                ${score !== undefined ? `<canvas class="day-ring" id="ring-${day}"></canvas>` : ''}
                 ${isToday ? '' : '<span class="expand-hint">▼</span>'}
             </div>
             <div class="meal-day-content ${isToday ? 'expanded' : 'collapsed'}"></div>
@@ -869,9 +916,60 @@ document.getElementById('close-water-ui').addEventListener('click', async () => 
 
                 dayGroup.querySelector('.meal-day-content').appendChild(card);
             });
+                    console.log("DAY:", day);
+            console.log("SUMMARY:", window.summariesByDay);
+            console.log("MATCH:", window.summariesByDay?.[day]);
 
             mealsList.appendChild(dayGroup);
+            if (score !== undefined) {
+                setTimeout(() => drawMiniRing(day, score), 0);
+            }
         });
+    }
+
+    function drawMiniRing(day, score) {
+        const canvas = document.getElementById(`ring-${day}`);
+        if (!canvas) return;
+
+        const ctx = canvas.getContext("2d");
+
+        const size = 80;
+        canvas.width = size;
+        canvas.height = size;
+
+        const center = size / 2;
+        const radius = 28;
+        const thickness = 8;
+
+        ctx.clearRect(0, 0, size, size);
+
+        // background ring
+        ctx.beginPath();
+        ctx.arc(center, center, radius, 0, 2 * Math.PI);
+        ctx.lineWidth = thickness;
+        ctx.strokeStyle = "#e0e0e0";
+        ctx.stroke();
+
+        // progress ring
+        const end = -0.5 * Math.PI + (score / 100) * 2 * Math.PI;
+
+        ctx.beginPath();
+        ctx.arc(center, center, radius, -0.5 * Math.PI, end);
+        ctx.strokeStyle =
+            score > 80 ? "#56c596" :
+            score > 50 ? "#f9a826" :
+            "#ff5c5c";
+
+        ctx.lineWidth = thickness;
+        ctx.lineCap = "round";
+        ctx.stroke();
+
+        // center text
+        ctx.fillStyle = "#333";
+        ctx.font = "bold 14px Arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(score, center, center);
     }
 
     // ============ ADD MEAL FORM ============
@@ -932,7 +1030,7 @@ document.getElementById('close-water-ui').addEventListener('click', async () => 
         
         const date = new Date();
         date.setDate(date.getDate() + debugOffsetDays);
-        const dateKey = date.toDateString();
+        const dateKey = getDateKey(date);
         newMeal.dateKey = dateKey;
 
         if (!window.mealsByDay) window.mealsByDay = {};
