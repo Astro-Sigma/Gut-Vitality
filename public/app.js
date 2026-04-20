@@ -642,7 +642,7 @@ document.getElementById('close-water-ui').addEventListener('click', async () => 
     document.body.style.visibility = 'visible';
 
     await loadLeaderboard();
-    await loadDailyQuestion();
+    await loadInfiniteQuestion();
     
     if (!window.challengeTimerInitialized) {
         updateChallengeTimer();
