@@ -377,7 +377,7 @@ async function loadLeaderboard() {
 }
 
 // ---------- Load Daily Question ----------
-async function loadDailyQuestion(){
+/*async function loadDailyQuestion(){
     console.log("loadDailyQuestion() called");
     const questionContent = document.getElementById('daily-question-content');
     if(!questionContent){
@@ -451,6 +451,64 @@ async function loadDailyQuestion(){
         console.error("Error loading daily question:",err);
         questionContent.innerHTML='<div class="loading-message">Error loading question</div>';
     }
+}*/
+
+let questionHistory = [];
+
+async function loadInfiniteQuestion() {
+    const container = document.getElementById('daily-question-content');
+    container.innerHTML = "Loading...";
+
+    const res = await fetch('/api/generate-question', {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ history: questionHistory })
+    });
+
+    const q = await res.json();
+    questionHistory.push(q.question);
+
+    renderQuestion(q);
+}
+
+function renderQuestion(q) {
+    const container = document.getElementById('daily-question-content');
+
+    container.innerHTML = `
+        <div class="question-card">
+            <div class="question-text">${q.question}</div>
+            <div class="question-options">
+                ${q.options.map((opt, i) => `
+                    <button class="option-btn" data-index="${i}">${opt}</button>
+                `).join('')}
+            </div>
+            <div id="question-feedback"></div>
+        </div>
+    `;
+
+    const buttons = container.querySelectorAll('.option-btn');
+
+    buttons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const selected = parseInt(btn.dataset.index);
+            const correct = q.correct;
+
+            buttons.forEach(b => b.disabled = true);
+
+            buttons[correct].classList.add('correct');
+            if (selected !== correct) btn.classList.add('incorrect');
+
+            const feedback = document.getElementById('question-feedback');
+            feedback.innerHTML = `
+                <strong>${selected === correct ? "✓ Correct" : "✗ Incorrect"}</strong>
+                <div>${q.explanation}</div>
+                <button id="next-question-btn">Next Question →</button>
+            `;
+
+            document.getElementById('next-question-btn')
+                .addEventListener('click', loadInfiniteQuestion);
+        });
+    });
 }
 
 // ---------- Save Answer ----------
