@@ -1789,3 +1789,34 @@ button[type="submit"]:hover {
     transform: translateY(-1px);
     box-shadow: 0 10px 25px rgba(42, 157, 244, 0.25);
 }
+
+.meal-day-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+.meal-day-content.expanded {
+    max-height: 500px; /* or 70vh if you want scrollable */
+    overflow-y: auto;
+}
+
+.meal-day-title {
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    padding: 8px;
+    font-weight: bold;
+    background: #f5f5f5;
+    border-radius: 8px;
+    margin-top: 6px;
+}
+
+.meal-day-title.today {
+    background: #dff7e3;
+    cursor: default;
+}
+
+.meal-day-group {
+    margin-bottom: 6px;
+}

@@ -762,13 +762,30 @@ document.getElementById('close-water-ui').addEventListener('click', async () => 
             return;
         }
 
+        const todayKey = new Date().toDateString();
+
         sortedDays.forEach(day => {
+            const isToday = day === todayKey;
             const dayGroup = document.createElement('div');
             dayGroup.className = 'meal-day-group';
 
             dayGroup.innerHTML = `
-                <div class="meal-day-title">${day}</div>
+                <div class="meal-day-title ${isToday ? 'today' : 'collapsed'}">
+                    ${day}
+                    ${isToday ? '' : '<span class="expand-hint">▼</span>'}
+                </div>
+                <div class="meal-day-content ${isToday ? 'expanded' : 'collapsed'}"></div>
             `;
+
+            const title = dayGroup.querySelector('.meal-day-title');
+            const content = dayGroup.querySelector('.meal-day-content');
+
+            if (!isToday) {
+                title.addEventListener('click', () => {
+                    const open = content.classList.toggle('expanded');
+                    content.classList.toggle('collapsed', !open);
+                });
+            }
 
             mealsByDay[day].forEach((meal) => {
                 const card = document.createElement('div');
@@ -804,7 +821,7 @@ document.getElementById('close-water-ui').addEventListener('click', async () => 
                     renderMeals();
                 });
 
-                dayGroup.appendChild(card);
+                dayGroup.querySelector('.meal-day-content').appendChild(card);
             });
 
             mealsList.appendChild(dayGroup);
