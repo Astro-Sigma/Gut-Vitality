@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } = window.firebaseImports.auth;
     const { doc, setDoc, getDoc, updateDoc, collection, addDoc, query, where, getDocs, deleteDoc } = window.firebaseImports.firestore;
 
-    let debugOffsetDays = -2;
+    let debugOffsetDays = -3;
 
     const panel = document.getElementById('water-panel');
 
